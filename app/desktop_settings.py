@@ -52,7 +52,9 @@ class PathsJob(QThread):
         except (OSError,ValueError,RuntimeError) as error:self.failed.emit(str(error))
 
 class SettingsDialog(QDialog):
+    startupReady=Signal(object)
     def __init__(self,pet,embedded=False,lazy=False):
+        self._startup_values={}
         super().__init__(pet,Qt.WindowType.Widget if embedded else Qt.WindowType.Dialog);self.pet=pet;self.embedded=embedded;self.fields={};self.job=None;self.connection_job=None
         self.field_tabs={};self.field_titles={};self.factors={};self._writing_widgets=True;self.draft=None;self.path_job=None
         if embedded:self.setWindowFlags(Qt.WindowType.Widget)
@@ -87,8 +89,18 @@ class SettingsDialog(QDialog):
         self.tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         outer.addLayout(row);self.tabs.currentChanged.connect(self.activate_page);self.reload()
         if hasattr(pet,'settingsChanged'):pet.settingsChanged.connect(self.sync_from_pet)
+        self.startupReady.connect(self.startup_ready)
+        threading.Thread(target=self.read_startup,name='BailongStartupRead',daemon=True).start()
         pet.bubble.dataBusyChanged.connect(self.update_refresh_state)
         for key in self.refresh_buttons:self.update_refresh_state(key,getattr(pet.bubble,key+'_busy'))
+    def read_startup(self):
+        from codex_startup import enabled
+        try:value=dict(startup=autostart_enabled(),codex_startup=enabled())
+        except OSError:value={}
+        try:self.startupReady.emit(value)
+        except RuntimeError:pass
+    def startup_ready(self,value):
+        self._startup_values=value;self.sync_from_pet()
     def build_page(self,index):
         if index in self._built_pages:return
         self._built_pages.add(index);self._building_index=index;self._writing_widgets=True
@@ -235,13 +247,14 @@ class SettingsDialog(QDialog):
     def build_page_5(self):
         pet=self.pet
         maintenance=self.tab('更新与维护')
-        self.section(maintenance,'软件更新','检查 GitHub 公开稳定版；下载和安装由你主动发起。')
-        self.check(maintenance,'update_checks','自动检查更新（不自动下载）')
-        if hasattr(pet,'updates'):
+        portable=hasattr(pet,'_edge_controller')
+        self.section(maintenance,'软件版本','电视环境定制版，源码保存在 D 盘开发目录。' if portable else '检查 GitHub 公开稳定版；下载和安装由你主动发起。')
+        if not portable:self.check(maintenance,'update_checks','自动检查更新（不自动下载）')
+        if hasattr(pet,'updates') and not portable:
             from update_widgets import UpdatePanel
             self.update_panel=UpdatePanel(pet.updates);maintenance.addRow(self.update_panel)
         self.section(maintenance,'诊断与数据','维护操作立即执行；不属于设置草稿。')
-        if hasattr(pet,'open_install_manager'):
+        if hasattr(pet,'open_install_manager') and not portable:
             button=QPushButton('程序位置与安装管理');button.clicked.connect(pet.open_install_manager);maintenance.addRow(button)
         for title,slot in [('打开配置与聊天记录目录',pet.open_data),('导出诊断报告（不含对话和密钥）',pet.export_diagnostics),('备份设置（不含密钥与对话）',pet.backup_settings),('恢复设置备份',pet.restore_settings),('清理历史版本与备份（先预览）',pet.cleanup_installations)]:
             button=QPushButton(title);button.clicked.connect(slot);maintenance.addRow(button)
@@ -306,7 +319,12 @@ class SettingsDialog(QDialog):
             area=QScrollArea();area.setWidgetResizable(True)
             area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
             # Reserve the gutter so opening a disclosure cannot rewrap its body.
-            area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn);area.setWidget(widget)
+            area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+            # Keep rows at their natural height. A form placed directly in a
+            # resizable scroll viewport stretches labels to consume empty space.
+            body=QWidget();body_layout=QVBoxLayout(body);body_layout.setContentsMargins(0,0,0,0)
+            body_layout.addWidget(widget,0,Qt.AlignmentFlag.AlignTop);body_layout.addStretch(1)
+            area.setWidget(body)
             bar=area.verticalScrollBar();bar.setSingleStep(32)
             bar.rangeChanged.connect(lambda low,high,b=bar:b.setEnabled(high>low))
             index=self.tabs.addTab(area,{'面板与显示':'面板','人物与动作':'人物','Codex 联动':'Codex','角色与素材':'素材','闲聊与台词':'闲聊','更新与维护':'维护'}.get(title,title))
@@ -344,13 +362,10 @@ class SettingsDialog(QDialog):
     def values_from_pet(self,read_startup=False):
         values={key:copy.deepcopy(self.pet.settings.get(key,DEFAULTS[key])) for key in DEFAULTS}
         values['talk_lines']=copy.deepcopy(self.pet.settings.get('talk_lines',DEFAULTS['talk_lines']))
-        if read_startup:
-            from codex_startup import enabled
-            try:values['startup']=autostart_enabled();values['codex_startup']=enabled()
-            except OSError:self.status.setText('开机启动状态读取失败；其他设置仍可修改。')
+        values.update(self._startup_values)
         return values
     def reload(self):
-        self.status.clear();values=self.values_from_pet(read_startup=True);values.setdefault('startup',False)
+        self.status.clear();values=self.values_from_pet(read_startup=False);values.setdefault('startup',False)
         self.draft=SettingsDraft(values);self.fill(self.draft.values);self.refresh_library();self.update_draft_state()
     def sync_from_pet(self,changes=None,read_startup=False):
         if self.draft is None:return

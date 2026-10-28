@@ -4,7 +4,7 @@ from pathlib import Path,PurePosixPath
 
 MARKER='.bailong-storage.json'
 
-def data_dir():return Path(os.environ.get('LOCALAPPDATA',str(Path.home())))/'BailongEnhanced'
+from app_paths import data_dir,workspace
 
 def registered_install_root():
     if sys.platform!='win32':return None
@@ -30,11 +30,12 @@ def install_root():
     exe=Path(sys.executable).absolute()
     if getattr(sys,'frozen',False) and exe.parent.parent.name=='versions':
         return exe.parent.parent.parent
-    return registered_install_root() or Path(os.environ.get('LOCALAPPDATA',str(Path.home())))/'Programs/BailongEnhanced'
+    return registered_install_root() or workspace()/'程序'
 
 def material_root(state):
     state=Path(state);path=state/'material-location.json'
-    if not path.exists():return state/'materials'
+    if not path.exists():
+        return state/'materials' if os.environ.get('BAILONG_ISOLATED')=='1' else workspace()/'素材'
     value=json.loads(path.read_text(encoding='utf-8'))
     p=Path(value['path'])
     if value.get('schema')!=1 or not p.is_absolute():raise ValueError('动画目录配置无效')

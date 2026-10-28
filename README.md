@@ -1,5 +1,8 @@
 # Codex&GPT桌宠数据中心 | 你桌面的龙娘小助手
 
+> **Fork：电视面板定制源码**
+> 此 Fork 的源码包含紧凑面板、四边滑出收纳、中文 Token 单位和人物遮挡点击修复。当前定制版本为本地构建 1.3.2，尚未发布对应安装包；下方原项目的版本与下载链接指向上游发布内容，不包含本 Fork 的定制功能。使用说明见 [电视面板定制说明](docs/TV_PANEL.md)。
+
 ![文章海报](docs/media/cover.png)
 
 一只陪你使用 Codex 的 Windows 白龙桌宠：在桌面查看任务状态、接收完成提醒、追踪账户额度和 Token 用量。基于 [jingh12312-rgb/bailong-desktop-pet](https://github.com/jingh12312-rgb/bailong-desktop-pet) 持续改造，当前公开版本 **v1.2.1**。

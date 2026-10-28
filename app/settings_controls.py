@@ -1,11 +1,53 @@
 """Small native controls using the companion's existing typography and palette."""
 import os
 from functools import lru_cache
-from PySide6.QtCore import Qt,QRectF,QSize,Signal,QVariantAnimation,QEasingCurve
-from PySide6.QtGui import QPainter,QColor,QPen,QFontMetrics
-from PySide6.QtWidgets import QWidget,QHBoxLayout,QToolButton,QCheckBox,QSizePolicy
+from PySide6.QtCore import Qt,QRectF,QPointF,QSize,Signal,QVariantAnimation,QEasingCurve
+from PySide6.QtGui import QPainter,QColor,QPen,QFontMetrics,QPainterPath
+from PySide6.QtWidgets import QWidget,QHBoxLayout,QToolButton,QCheckBox,QSizePolicy,QStyle,QStyleOptionButton
 from typography import FONT_CSS,ui_font
 from ui_theme import INK,MUTED,PRIMARY,SELECTED,PANEL,BORDER,SURFACE,DISABLED
+
+
+class MarkedCheckBox(QCheckBox):
+    """Native checkbox behavior with a clear, DPI-independent painted checkmark."""
+    def __init__(self,text,parent=None):
+        super().__init__(text,parent)
+        self.setMinimumHeight(32)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setStyleSheet('QCheckBox{spacing:9px;}QCheckBox::indicator{width:20px;height:20px;}')
+
+    def paintEvent(self,event):
+        option=QStyleOptionButton();self.initStyleOption(option)
+        p=QPainter(self);p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        rect=QRectF(self.style().subElementRect(QStyle.SubElement.SE_CheckBoxIndicator,option,self)).adjusted(.75,.75,-.75,-.75)
+        if self.layoutDirection()==Qt.LayoutDirection.RightToLeft:
+            text_rect=QRectF(0,0,rect.left()-9,self.height())
+            alignment=Qt.AlignmentFlag.AlignRight
+        else:
+            text_left=rect.right()+10
+            text_rect=QRectF(text_left,0,self.width()-text_left,self.height())
+            alignment=Qt.AlignmentFlag.AlignLeft
+        p.setFont(self.font());p.setPen(QColor(INK if self.isEnabled() else DISABLED))
+        p.drawText(text_rect,alignment|Qt.AlignmentFlag.AlignVCenter|Qt.TextFlag.TextShowMnemonic,self.text())
+        checked=self.checkState()!=Qt.CheckState.Unchecked
+        color=PRIMARY if self.isEnabled() else DISABLED
+        p.setPen(QPen(QColor(color if checked else MUTED),1.5))
+        p.setBrush(QColor(color if checked else SURFACE))
+        p.drawRoundedRect(rect,4,4)
+        if checked:
+            p.setPen(QPen(QColor('#ffffff'),2.3,Qt.PenStyle.SolidLine,Qt.PenCapStyle.RoundCap,Qt.PenJoinStyle.RoundJoin))
+            if self.checkState()==Qt.CheckState.PartiallyChecked:
+                p.drawLine(rect.topLeft()+QPointF(rect.width()*.23,rect.height()*.5),
+                           rect.topLeft()+QPointF(rect.width()*.77,rect.height()*.5))
+            else:
+                path=QPainterPath();path.moveTo(rect.left()+rect.width()*.23,rect.top()+rect.height()*.51)
+                path.lineTo(rect.left()+rect.width()*.43,rect.top()+rect.height()*.71)
+                path.lineTo(rect.left()+rect.width()*.79,rect.top()+rect.height()*.29)
+                p.drawPath(path)
+        if self.hasFocus():
+            p.setBrush(Qt.BrushStyle.NoBrush);p.setPen(QPen(QColor(PRIMARY),1,Qt.PenStyle.DotLine))
+            p.drawRoundedRect(rect.adjusted(-3,-3,3,3),6,6)
+        p.end()
 
 
 @lru_cache(maxsize=1)

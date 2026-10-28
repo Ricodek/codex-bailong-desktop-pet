@@ -201,7 +201,8 @@ class QuotaRings(QWidget):
         p.setFont(font(11,True));p.setPen(MUTED);p.drawText(QRectF(2,CENTER_Y+8,self.width()-4,15),Qt.AlignmentFlag.AlignCenter,label)
         value_font=font(14,True);p.setFont(value_font)
         if p.fontMetrics().horizontalAdvance(value)>self.width()-8:p.setFont(font(12,True))
-        p.setPen(INK);p.drawText(QRectF(2,CENTER_Y+22,self.width()-4,21),Qt.AlignmentFlag.AlignCenter,value)
+        from count_display import draw_count_text
+        p.setPen(INK);draw_count_text(p,QRectF(2,CENTER_Y+22,self.width()-4,21),value,p.font(),Qt.AlignmentFlag.AlignCenter)
 
 @lru_cache(maxsize=1)
 def badge_offsets():

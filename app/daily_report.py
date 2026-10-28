@@ -7,6 +7,7 @@ from PySide6.QtGui import QPainter,QPainterPath,QPen,QColor,QFontMetrics,QPixmap
 from PySide6.QtWidgets import QWidget,QVBoxLayout,QHBoxLayout,QLabel,QToolButton,QScrollArea,QApplication,QSizePolicy,QProgressBar
 from compact_bubble import font,INK,MUTED,FONT_CSS,action_button
 from token_calendar import compact_tokens
+from count_display import CountLabel,draw_count_text
 from token_analytics import model_series,token_analogy
 from book_reference import analogy as book_analogy,catalog as book_catalog
 from chart_reveal import ChartReveal,RasterChart
@@ -47,7 +48,7 @@ class OverviewStats(QWidget):
             p.setPen(Qt.PenStyle.NoPen);p.setBrush(QColor('#f1ecf6'));p.drawRoundedRect(rect,6,6)
             p.setPen(MUTED);p.setFont(font(10,True));p.drawText(rect.adjusted(6,2,-3,-20),Qt.AlignmentFlag.AlignVCenter,label)
             p.setPen(INK);p.setFont(font(11 if i in (3,5) else 14,True))
-            p.drawText(rect.adjusted(6,17,-5,-2),Qt.AlignmentFlag.AlignVCenter,QFontMetrics(p.font()).elidedText(value,Qt.TextElideMode.ElideRight,round(width-11)))
+            draw_count_text(p,rect.adjusted(6,17,-5,-2),QFontMetrics(p.font()).elidedText(value,Qt.TextElideMode.ElideRight,round(width-11)),p.font(),Qt.AlignmentFlag.AlignVCenter)
 
 class ReportPlot(QWidget,RasterChart):
     hoverText=Signal(str)
@@ -95,7 +96,7 @@ class ReportPlot(QWidget,RasterChart):
             y=bottom-chart.height()*f;p.setPen(QPen(QColor('#e9e1ef'),.7));p.drawLine(QPointF(chart.left(),y),QPointF(chart.right(),y))
             p.setPen(MUTED)
             baseline=y+(self._axis_metrics.ascent()-self._axis_metrics.descent())/2
-            p.drawText(QPointF(chart.left()-6-self._axis_metrics.horizontalAdvance(text),baseline),text)
+            draw_count_text(p,QRectF(0,y-self._axis_metrics.height()/2,chart.left()-6,self._axis_metrics.height()),text,p.font(),Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
         slot=chart.width()/max(1,len(values));points=[];self.points=points;self.curve=None;path=QPainterPath();static=p;p=dynamic
         if self.mode=='line':
             for i,value in enumerate(values):
@@ -148,10 +149,10 @@ class ModelRow(QToolButton):
         p.setPen(INK);p.setFont(font(11,True));name=QFontMetrics(p.font()).elidedText(self.item['model'],Qt.TextElideMode.ElideRight,max(20,self.width()-120))
         p.drawText(QRectF(13,1,self.width()-122,19),Qt.AlignmentFlag.AlignVCenter,name)
         text=compact_tokens(self.item['total'])+f"  {self.item['total']/max(1,self.total)*100:.1f}%"
-        p.drawText(QRectF(self.width()-115,1,114,19),Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter,text)
+        draw_count_text(p,QRectF(self.width()-115,1,114,19),text,p.font(),Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
         p.setPen(QColor('#62576e'));p.setFont(font(10,True))
         detail=compact_tokens(self.item['input'])+' in  '+compact_tokens(self.item['output'])+' out' if self.item['known'] else '输入 / 输出分项记录不完整'
-        p.drawText(QRectF(13,18,self.width()-15,17),Qt.AlignmentFlag.AlignVCenter,detail)
+        draw_count_text(p,QRectF(13,18,self.width()-15,17),detail,p.font(),Qt.AlignmentFlag.AlignVCenter)
 
 class DailyReport(QWidget):
     refreshRequested=Signal()
@@ -183,7 +184,7 @@ class DailyReport(QWidget):
         bubble.installEventFilter(self);self.hide();self.rebuild()
     def label(self,text,size=11,bold=False):
         size=max(11,size)
-        w=QLabel(text);w.setFont(font(size,bold));w.setTextFormat(Qt.TextFormat.PlainText)
+        w=CountLabel(text);w.setFont(font(size,bold));w.setTextFormat(Qt.TextFormat.PlainText)
         # Bubble's inherited QLabel rule otherwise overrides setFont(…).
         w.setStyleSheet(FONT_CSS+f'font-size:{size}px;font-weight:{600 if size>14 else 500};color:#393343;background:transparent;');return w
     def card(self,name):

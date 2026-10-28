@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QWidget,QVBoxLayout,QHBoxLayout,QLabel,QSizePolicy
 from typography import ui_font as font,FONT_CSS
 from ui_theme import INK,MUTED,PRIMARY,ACCENT,PANEL,SELECTED,BORDER
 from token_calendar import compact_tokens
+from count_display import CountLabel,draw_count_text
 from chart_reveal import RasterChart,ChartReveal
 from choice_controls import ChoiceCombo
 from settings_controls import motion_enabled
@@ -17,7 +18,7 @@ def date_text(stamp):
 
 
 def text_label(text='',size=11,primary=False):
-    label=QLabel(text);label.setTextFormat(Qt.TextFormat.PlainText);label.setFont(font(size))
+    label=CountLabel(text);label.setTextFormat(Qt.TextFormat.PlainText);label.setFont(font(size))
     label.setStyleSheet(FONT_CSS+f'font-size:{size}px;color:{INK if primary else MUTED};background:transparent;')
     return label
 
@@ -44,7 +45,7 @@ class CyclePlot(QWidget,RasterChart):
         for f in (0,.5,1):
             y=chart.bottom()-chart.height()*f;p.setPen(QPen(QColor(BORDER),.7));p.drawLine(QPointF(chart.left(),y),QPointF(chart.right(),y))
             p.setPen(QColor(MUTED));value=compact_tokens(round(self._max*f))
-            p.drawText(QPointF(chart.left()-5-fm.horizontalAdvance(value),y+(fm.ascent()-fm.descent())/2),value)
+            draw_count_text(p,QRectF(0,y-fm.height()/2,chart.left()-5,fm.height()),value,p.font(),Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignVCenter)
         slot=chart.width()/max(1,len(self.cycles))
         for i,c in enumerate(self.cycles):
             x=chart.left()+i*slot+2;width=max(2,slot-4)

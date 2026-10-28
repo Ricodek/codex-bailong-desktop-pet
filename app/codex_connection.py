@@ -4,7 +4,7 @@ from pathlib import Path
 from functools import lru_cache
 
 def paths_file():
-    return Path(os.environ.get('LOCALAPPDATA',str(Path.home())))/'BailongEnhanced/connection-paths.json'
+    return __import__('app_paths').data_dir()/'connection-paths.json'
 
 @lru_cache(maxsize=8)
 def _saved_paths(filename):
@@ -176,7 +176,7 @@ def check_connection(query_quota=True,cancel=None):
             code=getattr(error,'code','unavailable');code=code if code in ('authentication','network','timeout','cli_missing','wsl_stopped') else 'unavailable'
             report['quota_error_code']=code;report['capabilities']['quota']=sample('unavailable',code)
     elif not report['cli_found']:report['capabilities']['quota']=sample('unavailable','cli_missing')
-    root=Path(os.environ.get('LOCALAPPDATA',str(Path.home())))/'BailongEnhanced'
+    root=__import__('app_paths').data_dir()
     try:
         config=json.loads((root/'chat.json').read_text(encoding='utf-8'));report['chat_configured']=bool(config.get('providers'))
     except (OSError,ValueError):report['chat_configured']=False

@@ -121,6 +121,12 @@ class DesktopPet(EnhancedPet):
             self.video_yield=VideoYield(self)
         self.save_settings()
         self.schedule_animation()
+        if os.environ.get('BAILONG_CLASSIC_PANEL')!='1':
+            from workbench_panel import EdgeController
+            self.bubble.size_transition.cancel();self.bubble.hide()
+            self._edge_controller=EdgeController(self,self.bubble)
+            self.bubble._edge_controller=self._edge_controller
+            QApplication.instance().aboutToQuit.connect(self._edge_controller.shutdown)
 
     def poll_codex_presence(self):
         from codex_connection import is_wsl_source
@@ -318,9 +324,16 @@ class DesktopPet(EnhancedPet):
             if msg.message==0x84: # WM_NCHITTEST. Preserve soft alpha in the layered window.
                 from native_coordinates import client_position,message_position
                 pos=client_position(msg.hWnd,*message_position(msg.lParam),self.width(),self.height())
+                if pos is not None and self.panel_covers_point(*pos):return True,-1
                 # Conversion failure delegates to Qt instead of making the pet unclickable.
                 if pos is not None and not self.alpha_hit(*pos):return True,-1
         return super().nativeEvent(event_type,message)
+
+    def panel_covers_point(self,x,y):
+        """Panel controls own an overlap unless a character drag already began."""
+        edge=getattr(self,'_edge_controller',None)
+        return bool(edge and edge.window.isVisible() and
+            edge.window.geometry().contains(self.mapToGlobal(QPoint(round(x),round(y)))))
 
     def alpha_hit(self,x,y):
         if self.settings.get('mouse_through'):return False
@@ -756,6 +769,7 @@ class DesktopPet(EnhancedPet):
     def move_card(self,point):
         rect=QRect(point,self.bubble.size());self.remember_card_anchor(rect);self.bubble.move(self.card_geometry(rect.size()).topLeft());self.remember_card_anchor(self.bubble.geometry())
     def position_bubble(self):
+        if getattr(self,"_edge_controller",None):return
         if self.enhanced_ready and (self.bubble.size_transition.running or self.bubble.size_transition.preparing or self.bubble.size_transition.landing.image is not None):return
         if self.enhanced_ready and (self.settings.get('panel_detached') or not self.settings.get('character_visible',True)):
             self.bubble.move(self.card_geometry(self.bubble.content.size()).topLeft())
@@ -775,6 +789,7 @@ class DesktopPet(EnhancedPet):
         return not any(panel and panel.isVisible() and not panel.isMinimized()
                        for panel in (self.settings_dialog,self.chat_window))
     def sync_panel_flags(self):
+        if getattr(self,"_edge_controller",None):return
         self.bubble._editing_flags(self.bubble.panel_page!='status')
         for panel in (self.settings_dialog,self.chat_window):
             if panel is None or not panel.isWindow():continue
@@ -786,6 +801,10 @@ class DesktopPet(EnhancedPet):
                     panel.setWindowState(state);panel.show()
                     if active:panel.raise_();panel.activateWindow()
     def show_panel(self,panel):
+        if getattr(self,'_edge_controller',None):
+            self._desktop_hidden=False
+            self._edge_controller.attach_editor('settings' if panel is self.settings_dialog else 'chat',panel)
+            return
         if not panel.isWindow():
             self.stop_walk();self.throwing=False;self._desktop_hidden=False;self.apply_surface_visibility()
             # First activation can synchronously polish the native editor and
@@ -870,6 +889,7 @@ class DesktopPet(EnhancedPet):
         except OSError:self.say('启动设置保存失败，请打开设置检查。',5000)
         if self.settings_dialog:self.settings_dialog.sync_from_pet(read_startup=True)
     def open_report(self):
+        if getattr(self,'_edge_controller',None):self._edge_controller.navigate('stats');return
         if self.bubble.report is None:
             from daily_report import DailyReport
             self.bubble.report=DailyReport(self.bubble)
@@ -879,6 +899,8 @@ class DesktopPet(EnhancedPet):
         self.bubble.report.toggle()
 
     def open_quota_comparison(self):
+        if getattr(self,'_edge_controller',None):
+            self._edge_controller.navigate('stats');self._edge_controller.statistics.select_mode('quota');return
         if self.bubble.report is None:
             from daily_report import DailyReport
             self.bubble.report=DailyReport(self.bubble)
@@ -891,7 +913,7 @@ class DesktopPet(EnhancedPet):
         if not self.settings_dialog:
             from desktop_settings import SettingsDialog
             self.settings_dialog=SettingsDialog(self,embedded=True,lazy=True)
-        self.settings_dialog.sync_from_pet(read_startup=True)
+        self.settings_dialog.sync_from_pet(read_startup=False)
         self.show_panel(self.settings_dialog)
     def open_status(self):
         self.show()
@@ -1183,8 +1205,16 @@ class DesktopPet(EnhancedPet):
             self.recently_visited={sid:t for sid,t in getattr(self,'recently_visited',{}).items() if time.monotonic()-t<120}
             self.activity.set_context(self.bubble.roster.pinned,self.recently_visited)
         if self.settings_dialog and self.settings_dialog.isVisible():self.connectionHealthChanged.emit(value['connection_health'])
+        edge=getattr(self,'_edge_controller',None)
+        if edge:
+            value.update(panel_layout='workbench-1.3',panel_page=edge.current_page,
+                panel_font_size=edge.prefs['font_size'],panel_scale=edge.prefs['panel_scale'],
+                panel_dock=edge.dock,panel_bounds=list(edge.window.geometry().getRect()),
+                panel_open=edge.window.isVisible(),panel_progress=edge.progress,
+                panel_motion_running=edge.animation.isActive(),data_dir=str(STATE_DIR))
         atomic_json(path,value)
     def closeEvent(self,event):
+        if getattr(self,'_edge_controller',None):self._edge_controller.shutdown()
         if getattr(self,'_cleanup_job',None):
             self._cleanup_exit_pending=True;event.ignore();return
         if hasattr(self,'materials') and not self.materials.shutdown():

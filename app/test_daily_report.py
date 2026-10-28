@@ -206,8 +206,8 @@ class ReportUiTests(unittest.TestCase):
             per_percent=6000,complete=True,fresh=True,records=3,drop=25,comparison_reason='尚无可比历史',change=None)
         data=sample();data['quota_history']=dict(cycles=[item])
         self.r.set_snapshot(data)
-        self.assertEqual(self.r.cycle_view.used.text(),'150.0K')
-        self.assertEqual(self.r.cycle_view.estimate.text(),'600.0K')
+        self.assertEqual(self.r.cycle_view.used.text(),'1.5\u202f十万')
+        self.assertEqual(self.r.cycle_view.estimate.text(),'6\u202f十万')
         self.assertIn('75%',self.r.cycle_view.detail.text())
         APP.processEvents()
         self.assertEqual(self.r.scroll.verticalScrollBar().maximum(),0)
@@ -272,7 +272,7 @@ class ReportUiTests(unittest.TestCase):
         data=sample();data['report']['hours'][15]=17270000
         self.r.set_snapshot(data);self.r.open();self.complete();plot=self.r.plot
         plot.grab();chart=plot.chart_rect();fm=plot._axis_metrics
-        self.assertIn('17.27M',plot._axis_labels)
+        self.assertIn('1.73\u202f千万',plot._axis_labels)
         for text in plot._axis_labels:
             self.assertGreaterEqual(chart.left()-6-fm.horizontalAdvance(text),1)
         self.assertGreaterEqual(chart.top()-fm.height()/2,1)

@@ -11,7 +11,7 @@ import psutil
 POLL_SECONDS=2
 WATCH_FLAG='--watch-codex'
 
-def data_dir():return Path(os.environ['LOCALAPPDATA'])/'BailongEnhanced'
+from app_paths import data_dir
 def install_root():return __import__('storage_locations').install_root()
 def preference_path():return data_dir()/'codex-startup.json'
 def startup_path():return Path(os.environ['APPDATA'])/'Microsoft/Windows/Start Menu/Programs/Startup/BailongCodexSync.lnk'
@@ -35,6 +35,11 @@ def supports_watcher(exe):
 
 def register(exe=None,previous_root=None):
     """Installer calls this inside its existing recoverable entry transaction."""
+    if os.environ.get('BAILONG_ISOLATED')!='1':
+        from startup_registry import write
+        command=[str(exe)] if exe is not None else app_command()
+        write('BailongCodexSync',subprocess.list2cmdline(command+[WATCH_FLAG]) if enabled() else None)
+        return
     path=startup_path()
     command=[str(exe)] if exe is not None else app_command()
     from windows_entries import startup_entry

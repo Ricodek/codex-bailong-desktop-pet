@@ -6,6 +6,7 @@ from PySide6.QtGui import QPainter,QPen,QColor,QPainterPath,QFontMetrics
 from PySide6.QtWidgets import QWidget,QVBoxLayout,QHBoxLayout,QToolButton,QToolTip,QSizePolicy
 from compact_bubble import font,INK,MUTED,FONT_CSS
 from token_calendar import usage_series,compact_tokens,TOKEN_RANGES
+from count_display import draw_count_text
 from chart_reveal import ChartReveal,RasterChart
 from chart_curve import SmoothTrace
 
@@ -39,7 +40,7 @@ class TokenPlot(QWidget,RasterChart):
     def render_layers(self,p,dynamic):
         s=self.series;w=self.width();h=self.height();p.setFont(font(11,True));p.setPen(INK)
         title=s['title']+' · '+compact_tokens(s['total']) if s['available'] else ('暂不可用' if self.snapshot.get('unavailable') else '统计中…')
-        p.drawText(QRectF(0,0,w,max(16,QFontMetrics(p.font()).height())),Qt.AlignmentFlag.AlignCenter,QFontMetrics(p.font()).elidedText(title,Qt.TextElideMode.ElideRight,w))
+        draw_count_text(p,QRectF(0,0,w,max(16,QFontMetrics(p.font()).height())),QFontMetrics(p.font()).elidedText(title,Qt.TextElideMode.ElideRight,w),p.font(),Qt.AlignmentFlag.AlignCenter)
         plot=self.chart_rect();bottom=plot.bottom();bins=s['bins'];top=max((b['value'] for b in bins if not b['future']),default=0)
         p.setPen(QPen(QColor('#d8cde3'),.8));p.drawLine(QPointF(plot.left(),bottom),QPointF(plot.right(),bottom))
         p.setPen(QPen(QColor('#e9e1f0'),.6));p.drawLine(QPointF(plot.left(),plot.top()),QPointF(plot.right(),plot.top()))

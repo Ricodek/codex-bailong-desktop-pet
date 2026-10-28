@@ -198,5 +198,6 @@ class TodayTokens(QWidget):
         p.setPen(MUTED);p.setFont(font(10));p.drawText(QRectF(8,0,69,self.height()),Qt.AlignmentFlag.AlignVCenter,'今日 Token')
         p.setFont(font(12,True));p.setPen(INK)
         value=self.data['display']+(' 部分' if self.data['partial'] else '')
-        p.drawText(QRectF(77,0,self.width()-128,self.height()),Qt.AlignmentFlag.AlignVCenter,value)
+        from count_display import draw_count_text
+        draw_count_text(p,QRectF(77,0,self.width()-128,self.height()),value,p.font(),Qt.AlignmentFlag.AlignVCenter)
         p.setPen(QColor('#75618d') if self.selected else MUTED);p.setFont(font(10,self.selected));p.drawText(QRectF(self.width()-45,0,37,self.height()),Qt.AlignmentFlag.AlignVCenter|Qt.AlignmentFlag.AlignRight,'24h ›')

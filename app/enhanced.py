@@ -9,6 +9,8 @@ import threading
 import queue
 import time
 from pathlib import Path
+from app_paths import prepare_runtime
+_PORTABLE_STATE=prepare_runtime()
 
 # Companion watcher has no GUI, Qt initialization or animation resources.
 if __name__=='__main__' and '--cleanup-storage-migration' in sys.argv:
@@ -31,7 +33,7 @@ from token_calendar import TokenUsageIndex
 from refresh_flow import RefreshCoordinator, RefreshRuns
 from hover_hints import TrayHints
 
-STATE_DIR=Path(os.environ.get('LOCALAPPDATA',str(ROOT)))/'BailongEnhanced'
+STATE_DIR=_PORTABLE_STATE
 STATE_DIR.mkdir(parents=True,exist_ok=True)
 CONFIG=STATE_DIR/'settings.json'
 
@@ -897,6 +899,9 @@ class EnhancedPet(Pet):
 
 
 def main():
+    if '--panel-probe' in sys.argv:
+        from panel_probe import run
+        return run(sys.argv[sys.argv.index('--panel-probe')+1])
     if '--chat-probe' in sys.argv:
         from chat_probe import run
         return run(sys.argv[sys.argv.index('--chat-probe')+1])
@@ -950,7 +955,7 @@ def main():
     from typography import install_ui_font
     install_ui_font(app)
     app.setQuitOnLastWindowClosed(False)
-    server_name='bailong-enhanced-local-v1'
+    server_name='bailong-portable-workbench-v1'
     if '--smoke-test' in sys.argv:server_name+='-smoke-'+str(os.getpid())
     socket=QLocalSocket()
     socket.connectToServer(server_name)

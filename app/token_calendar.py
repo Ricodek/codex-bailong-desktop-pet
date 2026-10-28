@@ -15,10 +15,27 @@ def counter(value):
     return None
 
 def compact_tokens(value):
-    if value>=1_000_000_000:return f'{value/1_000_000_000:.2f}B'
-    if value>=1_000_000:return f'{value/1_000_000:.2f}M'
-    if value>=1000:return f'{value/1000:.1f}K'
-    return str(value)
+    """Chinese decimal units, with at most two decimals and exact integer rounding."""
+    value=int(value)
+    amount=abs(value)
+    if amount<100:return str(value)
+    # Keep malformed, arbitrarily large JSON counters from overflowing the UI.
+    if amount>=10**52:return '<-9999\u202f极' if value<0 else '>9999\u202f极'
+    power=len(str(amount))-1
+    divisor=10**power
+    hundredths=(amount*100+divisor//2)//divisor
+    if hundredths>=1000:
+        power+=1
+        divisor*=10
+        hundredths=(amount*100+divisor//2)//divisor
+    # 万亿 avoids the ambiguous 兆. Higher names also cover future larger counts.
+    groups=('', '万', '亿', '万亿', '京', '垓', '秭', '穰', '沟', '涧', '正', '载', '极')
+    group,remainder=divmod(power,4)
+    if group>=len(groups):return '<-9999\u202f极' if value<0 else '>9999\u202f极'
+    suffix=('', '十', '百', '千')[remainder]+groups[group]
+    whole,fraction=divmod(hundredths,100)
+    number=str(whole)+(('.'+str(fraction).zfill(2).rstrip('0')) if fraction else '')
+    return ('-' if value<0 else '')+number+'\u202f'+suffix
 
 def month_bounds(now=None):
     current=datetime.fromtimestamp(time.time() if now is None else now)

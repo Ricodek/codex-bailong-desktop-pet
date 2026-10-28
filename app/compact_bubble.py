@@ -438,6 +438,10 @@ class CompactBubble(Bubble):
     def add(self,widget):self.layout.addWidget(widget);widget.show();return widget
     def label(self,text):
         label=QLabel(text);label.setTextFormat(Qt.TextFormat.PlainText);label.setWordWrap(True);return self.add(label)
+    def show(self):
+        if getattr(self,'_edge_controller',None):return
+        super().show()
+
     def toggle_details(self):
         if self.report and self.report.requested and self.report._animating:
             self._pending_navigation=('toggle',None);return
@@ -445,11 +449,15 @@ class CompactBubble(Bubble):
         if self.panel_page!='status':self.collapse_to_normal();return
         self.size_transition.begin();self.expanded=not self.expanded;self.redraw();self.size_transition.commit()
     def show_status(self,expanded=True):
+        edge=getattr(self,'_edge_controller',None)
+        if edge:edge.navigate('details' if expanded else 'overview');return
         if self.size_transition.running:self._pending_navigation=('status',expanded);self._pending_mode=None;return
         self.size_transition.begin()
         self.panel_page='status';self.expanded=expanded;self._editor_origin=None;self._editor_positioned=False
         self._editing_flags(False);self.redraw();self.size_transition.commit()
     def return_to_status(self):
+        edge=getattr(self,'_edge_controller',None)
+        if edge:edge.navigate('overview');return
         if self.size_transition.running:self._pending_navigation=('return',None);self._pending_mode=None;return
         if self.panel_page=='status':return
         origin=self._editor_origin or dict(expanded=False,bubble_mode=self.bubble_mode,auto_compact=self.auto_compact,
@@ -463,6 +471,8 @@ class CompactBubble(Bubble):
         if self.bubble_mode=='minimal':self.open_normal_from_minimal()
         else:self.set_mode('auto')
     def show_page(self,key,widget):
+        edge=getattr(self,'_edge_controller',None)
+        if edge:edge.attach_editor(key,widget);return
         if self.size_transition.running:self._pending_navigation=(key,widget);self._pending_mode=None;return
         if self.report:self.report.dismiss()
         self.size_transition.begin()
@@ -636,6 +646,8 @@ class CompactBubble(Bubble):
             self.status_view.clear_conversations()
             self.status_view.set_status('等待 Codex 新消息' if self.roster.items else self.status,self.expanded)
     def refresh_status(self):
+        edge=getattr(self,'_edge_controller',None)
+        if edge:edge.mark_dirty();return
         """Keep static cards and chart clocks alive for text-only changes."""
         if self.size_transition.running or self.size_transition.preparing:
             self.size_transition.status_deferred=True;return
@@ -654,6 +666,8 @@ class CompactBubble(Bubble):
         self._refresh_conversation_rows()
         self.setAccessibleName(self.heading+'；'+self.status)
     def redraw(self):
+        edge=getattr(self,'_edge_controller',None)
+        if edge:edge.mark_dirty();return
         if self.size_transition.running:self.size_transition.deferred=True;return
         if self.panel_page!='status':self._redraw_editor();return
         if self.is_minimal():self._redraw_minimal();return
@@ -766,6 +780,8 @@ class CompactBubble(Bubble):
     def is_compact(self):return self.is_island() or self.is_minimal()
     def is_island(self):return self.panel_page=='status' and not self.expanded and (self.bubble_mode=='mini' or (self.bubble_mode=='auto' and self.auto_compact))
     def set_mode(self,mode):
+        edge=getattr(self,'_edge_controller',None)
+        if edge:edge.navigate('overview');return
         if mode not in ('auto','mini','minimal'):raise ValueError('未知的卡片显示模式')
         if self.size_transition.running:self._pending_mode=mode;self._pending_navigation=None;return
         self.size_transition.begin();self.bubble_mode=mode;self.auto_compact=False;self._minimal_normal_open=False
@@ -774,6 +790,8 @@ class CompactBubble(Bubble):
         if self.report:self.report.dismiss()
         self._editing_flags(False);self.redraw();self.size_transition.commit();self.modeChanged.emit(mode)
     def open_normal_from_minimal(self):
+        edge=getattr(self,'_edge_controller',None)
+        if edge:edge.navigate('overview');return
         """Temporarily open the card while keeping minimal as its compact shape."""
         if self.size_transition.running:self._pending_navigation=('minimal_normal',None);self._pending_mode=None;return
         self.size_transition.begin();self._minimal_normal_open=True;self.auto_compact=False
@@ -802,6 +820,8 @@ class CompactBubble(Bubble):
         if self.codex_open is False:self.codex_open=None
         self.evaluate_mode()
     def evaluate_mode(self,now=None):
+        edge=getattr(self,'_edge_controller',None)
+        if edge:return
         now=time.monotonic() if now is None else now
         if self.panel_page!='status' or self.expanded or (self.report and self.report.requested) or self.size_transition.running:return
         if self.bubble_mode=='minimal':

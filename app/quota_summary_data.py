@@ -103,7 +103,7 @@ def today_tokens(tokens, now=None):
         except OverflowError:
             # JSON integers have arbitrary precision; oversized counters must
             # not crash the UI during compact formatting.
-            display = '>999T'
+            display = '>9999\u202f极'
         description = f'今日 Token：{count:,}\n本机 Codex 日志；输入含缓存，输出含推理。此数值不表示套餐额度。'
     else:
         display = '待统计'

@@ -14,7 +14,7 @@ from PySide6.QtWidgets import QApplication,QWidget,QVBoxLayout,QHBoxLayout,QLabe
 
 from storage_locations import install_root
 ROOT=install_root()
-DATA=Path(os.environ.get('LOCALAPPDATA',str(Path.home())))/'BailongEnhanced'
+DATA=__import__('app_paths').data_dir()
 from desktop_core import VERSION
 def read_manifest(root=ROOT):
     try:return json.loads((root/'installations.json').read_text(encoding='utf-8'))
@@ -298,7 +298,7 @@ class Installer(QWidget):
             lock=self.maintenance_lock(allow_uninstall=True)
             from storage_locations import plain,registered_install_root,MARKER
             expected=plain(ROOT);registered=registered_install_root()
-            default=Path(os.environ['LOCALAPPDATA'])/'Programs/BailongEnhanced'
+            default=__import__('app_paths').workspace()/'程序'
             marker={}
             try:marker=json.loads((ROOT/MARKER).read_text(encoding='utf-8'))
             except (OSError,ValueError):pass
